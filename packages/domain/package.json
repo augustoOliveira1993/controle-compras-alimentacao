@@ -1,0 +1,11 @@
+{
+  "name": "@compras/domain",
+  "version": "0.0.0",
+  "private": true,
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "lint": "eslint . --max-warnings=0"
+  }
+}

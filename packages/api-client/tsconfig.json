@@ -1,0 +1,12 @@
+{
+  "extends": "../config-typescript/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "NodeNext",
+    "declaration": true
+  },
+  "include": [
+    "src"
+  ]
+}

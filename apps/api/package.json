@@ -1,0 +1,24 @@
+{
+  "name": "@compras/api",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc && node --watch dist/main.js",
+    "start": "node dist/main.js",
+    "lint": "eslint . --max-warnings=0"
+  },
+  "dependencies": {
+    "@compras/domain": "workspace:*",
+    "@nestjs/common": "^12",
+    "@nestjs/core": "^12",
+    "@nestjs/platform-express": "^12",
+    "reflect-metadata": "^0.2",
+    "rxjs": "^7"
+  },
+  "devDependencies": {
+    "mongodb": "^6.22.0",
+    "mongodb-memory-server-core": "^10.4.3",
+    "supertest": "^7.3.2"
+  }
+}

@@ -1,0 +1,1587 @@
+openapi: 3.1.0
+info:
+  title: API do Controle de Compras Domésticas
+  version: 1.0.0
+  description: API REST. Dinheiro é inteiro em centavos; quantidades são strings decimais canônicas.
+servers:
+  - url: http://localhost:4000/api/v1
+security:
+  - sessionAuth: []
+    csrfAuth: []
+tags:
+  - name: Health
+  - name: Session
+  - name: Catalog
+  - name: Inventory
+  - name: ShoppingLists
+  - name: Budget
+  - name: Purchases
+  - name: Prices
+  - name: Insights
+  - name: Dashboard
+  - name: Audit
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API pronta
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: ok }
+  /auth/session:
+    post:
+      tags: [Session]
+      operationId: createSession
+      security:
+        - csrfAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '201':
+          description: Sessão iniciada; cookie enviado em Set-Cookie
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      tags: [Session]
+      operationId: getSession
+      responses:
+        '200':
+          description: Sessão atual
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Session]
+      operationId: deleteSession
+      responses:
+        '204': { description: Sessão encerrada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/csrf:
+    get:
+      tags: [Session]
+      operationId: issueCsrfToken
+      security: []
+      responses:
+        '200':
+          description: Emitir cookie CSRF e token para o cabeçalho X-CSRF-Token
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CsrfBootstrap' }
+  /categories:
+    get:
+      tags: [Catalog]
+      operationId: listCategories
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, INACTIVE] }
+      responses:
+        '200':
+          description: Categorias do domicílio
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryPage' }
+    post:
+      tags: [Catalog]
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCategoryRequest' }
+      responses:
+        '201':
+          description: Categoria criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /categories/{categoryId}:
+    parameters:
+      - $ref: '#/components/parameters/CategoryId'
+    get:
+      tags: [Catalog]
+      operationId: getCategory
+      responses:
+        '200':
+          description: Categoria
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Catalog]
+      operationId: updateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCategoryRequest' }
+      responses:
+        '200':
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /products:
+    get:
+      tags: [Catalog]
+      operationId: listProducts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: categoryId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, INACTIVE] }
+      responses:
+        '200':
+          description: Produtos paginados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductPage' }
+    post:
+      tags: [Catalog]
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProductRequest' }
+      responses:
+        '201':
+          description: Produto criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Catalog]
+      operationId: getProduct
+      responses:
+        '200':
+          description: Produto, apresentações e estoque
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Catalog]
+      operationId: updateProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProductRequest' }
+      responses:
+        '200':
+          description: Produto atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /products/{productId}/presentations:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    post:
+      tags: [Catalog]
+      operationId: createPresentation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePresentationRequest' }
+      responses:
+        '201':
+          description: Apresentação criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Presentation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /products/{productId}/presentations/{presentationId}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/PresentationId'
+    patch:
+      tags: [Catalog]
+      operationId: updatePresentation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePresentationRequest' }
+      responses:
+        '200':
+          description: Apresentação atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Presentation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory:
+    get:
+      tags: [Inventory]
+      operationId: getInventory
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: productId
+          in: query
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+        - name: state
+          in: query
+          schema: { type: string, enum: [KNOWN, NOT_CHECKED, BELOW_MINIMUM] }
+      responses:
+        '200':
+          description: Estoque agregado por produto; desconhecido não equivale a zero
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryPage' }
+  /inventory/{productId}/movements:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Inventory]
+      operationId: getProductStockMovements
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Movimentos auditáveis do produto na unidade-base
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockMovementPage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /inventory/check-previews:
+    post:
+      tags: [Inventory]
+      operationId: previewInventoryText
+      summary: Interpretar texto sem alterar estoque
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InventoryTextPreviewRequest' }
+      responses:
+        '200':
+          description: Correspondências, ambiguidades e itens desconhecidos para revisão
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryPreview' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /inventory/checks:
+    get:
+      tags: [Inventory]
+      operationId: listInventoryChecks
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Histórico de conferências
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCheckPage' }
+    post:
+      tags: [Inventory]
+      operationId: confirmInventoryCheck
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmInventoryCheckRequest' }
+      responses:
+        '201':
+          description: Conferência confirmada; somente linhas confirmadas movimentam estoque
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCheck' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /shopping-lists:
+    get:
+      tags: [ShoppingLists]
+      operationId: listShoppingLists
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: state
+          in: query
+          schema: { type: string, enum: [DRAFT, ACTIVE, COMPLETED] }
+      responses:
+        '200':
+          description: Listas atuais e anteriores
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShoppingListPage' }
+    post:
+      tags: [ShoppingLists]
+      operationId: createShoppingList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateShoppingListRequest' }
+      responses:
+        '201':
+          description: Lista criada sem efeitos financeiros ou de estoque
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShoppingList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /shopping-lists/generate:
+    post:
+      tags: [ShoppingLists]
+      operationId: generateShoppingList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateShoppingListRequest' }
+      responses:
+        '201':
+          description: Lista criada com justificativas, sem confirmar compras
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShoppingList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /shopping-lists/{listId}:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    get:
+      tags: [ShoppingLists]
+      operationId: getShoppingList
+      responses:
+        '200':
+          description: Lista e itens
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShoppingList' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [ShoppingLists]
+      operationId: updateShoppingList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateShoppingListRequest' }
+      responses:
+        '200':
+          description: Lista atualizada, ainda sem efeito em saldo ou estoque
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShoppingList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /shopping-lists/{listId}/budget-options:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    post:
+      tags: [ShoppingLists]
+      operationId: previewBudgetOptions
+      summary: Sugerir opções de adequação sem alterar a lista
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BudgetOptionsRequest' }
+      responses:
+        '200':
+          description: Alternativas explicáveis para a pessoa avaliar e aceitar individualmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetOptionsPreview' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /budget/current:
+    get:
+      tags: [Budget]
+      operationId: getCurrentBudget
+      responses:
+        '200':
+          description: Período, saldo, gasto e alertas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetPeriod' }
+  /budget/periods:
+    get:
+      tags: [Budget]
+      operationId: listBudgetPeriods
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Saldos e movimentos de períodos anteriores
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetPeriodPage' }
+  /budget/periods/{periodId}:
+    parameters:
+      - $ref: '#/components/parameters/BudgetPeriodId'
+    get:
+      tags: [Budget]
+      operationId: getBudgetPeriod
+      responses:
+        '200':
+          description: Extrato e alertas do período
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetPeriodDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /budget/settings:
+    put:
+      tags: [Budget]
+      operationId: updateBudgetSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BudgetSettingsRequest' }
+      responses:
+        '200':
+          description: Configuração recorrente atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /budget/credits:
+    post:
+      tags: [Budget]
+      operationId: addBudgetCredit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BudgetMovementRequest' }
+      responses:
+        '201':
+          description: Crédito registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetLedgerEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /budget/adjustments:
+    post:
+      tags: [Budget]
+      operationId: addBudgetAdjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BudgetAdjustmentRequest' }
+      responses:
+        '201':
+          description: Ajuste registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetLedgerEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /purchases:
+    get:
+      tags: [Purchases]
+      operationId: listPurchases
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: storeId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Compras paginadas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PurchasePage' }
+    post:
+      tags: [Purchases]
+      operationId: createPurchaseDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePurchaseDraftRequest' }
+      responses:
+        '201':
+          description: Rascunho sem movimentos de saldo ou estoque
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Purchase' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /purchases/{purchaseId}:
+    parameters:
+      - $ref: '#/components/parameters/PurchaseId'
+    get:
+      tags: [Purchases]
+      operationId: getPurchase
+      responses:
+        '200':
+          description: Compra e alocações de pagamento
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Purchase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Purchases]
+      operationId: updatePurchaseDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePurchaseDraftRequest' }
+      responses:
+        '200':
+          description: Rascunho atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Purchase' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /purchases/{purchaseId}/history:
+    parameters:
+      - $ref: '#/components/parameters/PurchaseId'
+    get:
+      tags: [Purchases]
+      operationId: getPurchaseHistory
+      responses:
+        '200':
+          description: Revisões e deltas de orçamento/estoque da compra
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PurchaseHistory' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /purchases/{purchaseId}/finalize:
+    parameters:
+      - $ref: '#/components/parameters/PurchaseId'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: { type: string, minLength: 16, maxLength: 128 }
+    post:
+      tags: [Purchases]
+      operationId: finalizePurchase
+      summary: Finalizar compra, estoque e saldo atomicamente
+      responses:
+        '200':
+          description: Compra finalizada; repetição idempotente devolve o resultado existente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Purchase' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /purchases/{purchaseId}/corrections:
+    parameters:
+      - $ref: '#/components/parameters/PurchaseId'
+    post:
+      tags: [Purchases]
+      operationId: correctPurchase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CorrectPurchaseRequest' }
+      responses:
+        '200':
+          description: Correção auditável e compensações registradas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Purchase' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /purchases/{purchaseId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/PurchaseId'
+    post:
+      tags: [Purchases]
+      operationId: cancelPurchase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelPurchaseRequest' }
+      responses:
+        '200':
+          description: Cancelamento auditável sem apagar compra original
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Purchase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /prices/compare:
+    get:
+      tags: [Prices]
+      operationId: comparePrices
+      parameters:
+        - name: productId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: presentationId
+          in: query
+          schema: { type: string }
+        - name: storeId
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Observações comparáveis por apresentação, unidade e supermercado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PriceComparison' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /insights/products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Insights]
+      operationId: getProductInsights
+      responses:
+        '200':
+          description: Recorrência, consumo e suficiência do histórico calculados por regras explícitas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductInsight' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboard
+      parameters:
+        - name: budgetPeriodId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Indicadores do período com links para detalhes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dashboard' }
+  /audit/events:
+    get:
+      tags: [Audit]
+      operationId: listAuditEvents
+      parameters:
+        - name: entityType
+          in: query
+          schema: { type: string }
+        - name: entityId
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Histórico permitido para o domicílio sem campos secretos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditEventPage' }
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session
+    csrfAuth:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    CategoryId:
+      name: categoryId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+    PresentationId:
+      name: presentationId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+    ListId:
+      name: listId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+    BudgetPeriodId:
+      name: periodId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+    PurchaseId:
+      name: purchaseId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+  responses:
+    BadRequest:
+      description: Payload ou parâmetro inválido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Sessão ausente ou inválida
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Recurso não encontrado no domicílio autenticado
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Conflito de estado, saldo, versão ou idempotência
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string }
+              message: { type: string }
+    MoneyCents:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+      description: Centavos inteiros dentro do limite seguro de JavaScript.
+    SignedMoneyCents:
+      type: integer
+      minimum: -9007199254740991
+      maximum: 9007199254740991
+    DecimalQuantity:
+      type: string
+      maxLength: 28
+      pattern: '^(0|[1-9][0-9]{0,11})(\.[0-9]{1,15})?$'
+      description: Decimal canônico até 12 algarismos inteiros e 15 casas decimais, sem expoente; unidade separada.
+    SignedDecimalQuantity:
+      type: string
+      maxLength: 29
+      pattern: '^-?(0|[1-9][0-9]{0,11})(\.[0-9]{1,15})?$'
+      description: Decimal com sinal até 12 algarismos inteiros e 15 casas decimais, sem expoente; unidade-base separada.
+    Unit:
+      type: string
+      enum: [g, kg, ml, l, un, package]
+    PageInfo:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+    AuditEventPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, entityType, entityId, action, occurredAt]
+            properties:
+              id: { type: string }
+              entityType: { type: string }
+              entityId: { type: string }
+              action: { type: string }
+              beforeSummary: { oneOf: [{ type: object }, { type: 'null' }] }
+              afterSummary: { oneOf: [{ type: object }, { type: 'null' }] }
+              source: { type: string }
+              occurredAt: { type: string, format: date-time }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    Category:
+      type: object
+      required: [id, name, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        parentId: { type: [string, 'null'] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        isSeeded: { type: boolean }
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        parentId: { type: [string, 'null'] }
+    UpdateCategoryRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    CategoryPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    Presentation:
+      type: object
+      required: [id, productId, cardEligibility, status]
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        brand: { type: [string, 'null'] }
+        packageContent:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        packageUnit: { $ref: '#/components/schemas/Unit' }
+        baseUnitsPerPackage:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        cardEligibility: { type: string, enum: [ELIGIBLE, INELIGIBLE, UNKNOWN] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    Product:
+      type: object
+      required: [id, name, categoryId, baseUnit, priority, status, presentations]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        categoryId: { type: string }
+        subcategoryId: { type: [string, 'null'] }
+        baseUnit: { type: string, enum: [g, ml, un] }
+        minimumHomeQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        usualPurchaseQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        priority: { type: string, enum: [HIGH, MEDIUM, LOW] }
+        recurrencePreference: { type: string, enum: [AUTO, RECURRING, OCCASIONAL] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        presentations:
+          type: array
+          items: { $ref: '#/components/schemas/Presentation' }
+    CreateProductRequest:
+      type: object
+      required: [name, categoryId, baseUnit, priority]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        categoryId: { type: string }
+        subcategoryId: { type: [string, 'null'] }
+        baseUnit: { type: string, enum: [g, ml, un] }
+        minimumHomeQuantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        usualPurchaseQuantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        priority: { type: string, enum: [HIGH, MEDIUM, LOW] }
+        recurrencePreference: { type: string, enum: [AUTO, RECURRING, OCCASIONAL] }
+        notes: { type: string, maxLength: 1000 }
+    UpdateProductRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string }
+        categoryId: { type: string }
+        subcategoryId: { type: [string, 'null'] }
+        minimumHomeQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        usualPurchaseQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        priority: { type: string, enum: [HIGH, MEDIUM, LOW] }
+        recurrencePreference: { type: string, enum: [AUTO, RECURRING, OCCASIONAL] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        notes: { type: string }
+    CreatePresentationRequest:
+      type: object
+      required: [cardEligibility]
+      additionalProperties: false
+      properties:
+        brand: { type: [string, 'null'] }
+        packageContent: { $ref: '#/components/schemas/DecimalQuantity' }
+        packageUnit: { $ref: '#/components/schemas/Unit' }
+        baseUnitsPerPackage: { $ref: '#/components/schemas/DecimalQuantity' }
+        cardEligibility: { type: string, enum: [ELIGIBLE, INELIGIBLE, UNKNOWN] }
+    UpdatePresentationRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        brand: { type: [string, 'null'] }
+        packageContent: { oneOf: [{ $ref: '#/components/schemas/DecimalQuantity' }, { type: 'null' }] }
+        packageUnit: { oneOf: [{ $ref: '#/components/schemas/Unit' }, { type: 'null' }] }
+        baseUnitsPerPackage: { oneOf: [{ $ref: '#/components/schemas/DecimalQuantity' }, { type: 'null' }] }
+        cardEligibility: { type: string, enum: [ELIGIBLE, INELIGIBLE, UNKNOWN] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    InventoryItem:
+      type: object
+      required: [productId, productName, state, baseUnit]
+      properties:
+        productId: { type: string }
+        productName: { type: string }
+        quantityBase:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        baseUnit: { type: string, enum: [g, ml, un] }
+        state: { type: string, enum: [KNOWN, NOT_CHECKED, BELOW_MINIMUM] }
+        lastConfirmedAt: { type: [string, 'null'], format: date-time }
+    InventoryPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/InventoryItem' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    StockMovement:
+      type: object
+      required: [id, productId, kind, deltaBaseQuantity, baseUnit, occurredAt]
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        presentationId: { type: [string, 'null'] }
+        kind: { type: string, enum: [PURCHASE_IN, STOCK_CHECK_ADJUSTMENT, PURCHASE_CORRECTION, MANUAL_ADJUSTMENT] }
+        deltaBaseQuantity: { $ref: '#/components/schemas/SignedDecimalQuantity' }
+        baseUnit: { $ref: '#/components/schemas/Unit' }
+        sourceType: { type: string }
+        sourceId: { type: string }
+        occurredAt: { type: string, format: date-time }
+    StockMovementPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/StockMovement' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    InventoryTextPreviewRequest:
+      type: object
+      required: [text]
+      additionalProperties: false
+      properties:
+        text: { type: string, minLength: 1, maxLength: 20000 }
+    InventoryPreview:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          items:
+            type: object
+            required: [rawText, matchingStatus]
+            properties:
+              rawText: { type: string }
+              productId: { type: [string, 'null'] }
+              presentationId: { type: [string, 'null'] }
+              quantity:
+                oneOf:
+                  - { $ref: '#/components/schemas/DecimalQuantity' }
+                  - { type: 'null' }
+              unit:
+                oneOf:
+                  - { $ref: '#/components/schemas/Unit' }
+                  - { type: 'null' }
+              matchingStatus: { type: string, enum: [MATCHED, AMBIGUOUS, UNKNOWN] }
+              candidates:
+                type: array
+                items:
+                  type: object
+                  required: [productId, productName]
+                  properties:
+                    productId: { type: string }
+                    productName: { type: string }
+    ConfirmInventoryCheckRequest:
+      type: object
+      required: [lines]
+      additionalProperties: false
+      properties:
+        source: { type: string, enum: [MANUAL, FREE_TEXT] }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, quantity, unit, confirmed]
+            properties:
+              productId: { type: string }
+              presentationId: { type: [string, 'null'] }
+              quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+              unit: { $ref: '#/components/schemas/Unit' }
+              confirmed: { type: boolean }
+    InventoryCheck:
+      type: object
+      required: [id, state, confirmedAt]
+      properties:
+        id: { type: string }
+        state: { type: string, const: CONFIRMED }
+        confirmedAt: { type: string, format: date-time }
+    InventoryCheckPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/InventoryCheck' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    ShoppingListItem:
+      type: object
+      required: [id, state, priority, rationaleText]
+      properties:
+        id: { type: string }
+        productId: { type: [string, 'null'] }
+        presentationId: { type: [string, 'null'] }
+        state: { type: string, enum: [SUGGESTED, SELECTED, PARTIALLY_PURCHASED, PURCHASED, DEFERRED, REMOVED] }
+        quantityAtHomeBase:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        suggestedBaseQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        chosenPackageQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        purchasedBaseQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        remainingBaseQuantity:
+          oneOf:
+            - { $ref: '#/components/schemas/DecimalQuantity' }
+            - { type: 'null' }
+        baseUnit: { type: [string, 'null'], enum: [g, ml, un, null] }
+        lastPriceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        estimatedUnitPriceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        estimatedSubtotalCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        priority: { type: string, enum: [HIGH, MEDIUM, LOW] }
+        rationaleCodes:
+          type: array
+          items: { type: string }
+        rationaleText: { type: string }
+        manualOverride: { type: boolean }
+    ShoppingList:
+      type: object
+      required: [id, state, revision, items]
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [DRAFT, ACTIVE, COMPLETED] }
+        revision: { type: integer, minimum: 1 }
+        budgetPeriodId: { type: string }
+        estimatedTotalCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ShoppingListItem' }
+    CreateShoppingListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, maxLength: 120 }
+        budgetPeriodId: { type: string }
+    GenerateShoppingListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        budgetPeriodId: { type: string }
+        additionalProductIds:
+          type: array
+          items: { type: string }
+    UpdateShoppingListRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision]
+      minProperties: 2
+      properties:
+        expectedRevision: { type: integer, minimum: 1 }
+        state: { type: string, enum: [ACTIVE, COMPLETED] }
+        items:
+          type: array
+          items:
+            type: object
+            required: [itemId]
+            properties:
+              itemId: { type: string }
+              state: { type: string, enum: [SELECTED, DEFERRED, REMOVED] }
+              chosenPackageQuantity: { $ref: '#/components/schemas/DecimalQuantity' }
+              presentationId: { type: string }
+        addItems:
+          type: array
+          items:
+            type: object
+            required: [priority]
+            anyOf:
+              - required: [productId]
+              - required: [rawName]
+            properties:
+              productId: { type: string }
+              rawName: { type: string, minLength: 1, maxLength: 160 }
+              presentationId: { type: string }
+              chosenPackageQuantity: { $ref: '#/components/schemas/DecimalQuantity' }
+              priority: { type: string, enum: [HIGH, MEDIUM, LOW] }
+    BudgetOptionsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        allowedActions:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [REDUCE_QUANTITY, DEFER_OPTIONAL, ALTERNATIVE_PRESENTATION] }
+        maxOptions: { type: integer, minimum: 1, maximum: 10, default: 5 }
+    BudgetOptionsPreview:
+      type: object
+      required: [estimatedTotalCents, availableCents, excessCents, options]
+      properties:
+        estimatedTotalCents: { $ref: '#/components/schemas/MoneyCents' }
+        availableCents: { $ref: '#/components/schemas/MoneyCents' }
+        excessCents: { $ref: '#/components/schemas/MoneyCents' }
+        options:
+          type: array
+          items:
+            type: object
+            required: [actions, resultingEstimatedTotalCents, savingsCents, rationaleText]
+            properties:
+              actions:
+                type: array
+                items:
+                  type: object
+                  required: [itemId, kind]
+                  properties:
+                    itemId: { type: string }
+                    kind: { type: string, enum: [REDUCE_QUANTITY, DEFER, ALTERNATIVE_PRESENTATION] }
+                    presentationId: { type: string }
+                    chosenPackageQuantity: { $ref: '#/components/schemas/DecimalQuantity' }
+              resultingEstimatedTotalCents: { $ref: '#/components/schemas/MoneyCents' }
+              savingsCents: { $ref: '#/components/schemas/MoneyCents' }
+              rationaleText: { type: string }
+    ShoppingListPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ShoppingList' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    BudgetSettings:
+      type: object
+      required: [monthlyCreditCents, rechargeDay, carryoverEnabled, effectiveFrom]
+      properties:
+        monthlyCreditCents: { $ref: '#/components/schemas/MoneyCents' }
+        rechargeDay: { type: integer, minimum: 1, maximum: 31 }
+        carryoverEnabled: { type: boolean }
+        effectiveFrom: { type: string, format: date }
+    BudgetSettingsRequest:
+      type: object
+      required: [monthlyCreditCents, rechargeDay, carryoverEnabled]
+      additionalProperties: false
+      properties:
+        monthlyCreditCents: { $ref: '#/components/schemas/MoneyCents' }
+        rechargeDay: { type: integer, minimum: 1, maximum: 31 }
+        carryoverEnabled: { type: boolean }
+    BudgetPeriod:
+      type: object
+      required: [id, startDate, endDate, totalAvailableCents, cardSpentCents, currentBalanceCents, status]
+      properties:
+        id: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        monthlyCreditCents: { $ref: '#/components/schemas/MoneyCents' }
+        openingCarryoverCents: { $ref: '#/components/schemas/SignedMoneyCents' }
+        totalAvailableCents: { $ref: '#/components/schemas/SignedMoneyCents' }
+        cardSpentCents: { $ref: '#/components/schemas/MoneyCents' }
+        currentBalanceCents: { $ref: '#/components/schemas/SignedMoneyCents' }
+        usagePercent: { type: number, minimum: 0 }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        alertsShown:
+          type: array
+          items: { type: integer, enum: [80, 90, 100] }
+    BudgetPeriodPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/BudgetPeriod' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    BudgetPeriodDetail:
+      type: object
+      required: [period, ledgerEntries, alerts]
+      properties:
+        period: { $ref: '#/components/schemas/BudgetPeriod' }
+        ledgerEntries:
+          type: array
+          items: { $ref: '#/components/schemas/BudgetLedgerEntry' }
+        alerts:
+          type: array
+          items:
+            type: object
+            required: [thresholdPercent, crossedAt, spentCentsAtCrossing]
+            properties:
+              thresholdPercent: { type: integer, enum: [80, 90, 100] }
+              crossedAt: { type: string, format: date-time }
+              spentCentsAtCrossing: { $ref: '#/components/schemas/MoneyCents' }
+    BudgetMovementRequest:
+      type: object
+      required: [amountCents, occurredAt]
+      additionalProperties: false
+      properties:
+        amountCents: { $ref: '#/components/schemas/MoneyCents' }
+        occurredAt: { type: string, format: date-time }
+        note: { type: string, maxLength: 500 }
+    BudgetAdjustmentRequest:
+      type: object
+      required: [amountCents, direction, occurredAt, reason]
+      additionalProperties: false
+      properties:
+        amountCents: { $ref: '#/components/schemas/MoneyCents' }
+        direction: { type: string, enum: [CREDIT, DEBIT] }
+        occurredAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    BudgetLedgerEntry:
+      type: object
+      required: [id, type, direction, amountCents, occurredAt]
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [MONTHLY_CREDIT, EXTRA_CREDIT, ADJUSTMENT, PURCHASE_SPEND, CORRECTION] }
+        direction: { type: string, enum: [CREDIT, DEBIT] }
+        amountCents: { $ref: '#/components/schemas/MoneyCents' }
+        occurredAt: { type: string, format: date-time }
+    PaymentAllocation:
+      type: object
+      required: [method, amountCents]
+      properties:
+        method: { type: string, enum: [FOOD_CARD, CASH, DEBIT, CREDIT, PIX, OTHER] }
+        amountCents: { $ref: '#/components/schemas/MoneyCents' }
+    PurchaseItem:
+      type: object
+      required: [productId, presentationId, quantity, unitPriceCents, discountCents]
+      properties:
+        productId: { type: string }
+        presentationId: { type: string }
+        sourceShoppingListItemId: { type: string }
+        quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        enteredUnit: { $ref: '#/components/schemas/Unit' }
+        unitPriceCents: { $ref: '#/components/schemas/MoneyCents' }
+        discountCents: { $ref: '#/components/schemas/MoneyCents' }
+        subtotalCents: { $ref: '#/components/schemas/MoneyCents' }
+    CreatePurchaseDraftRequest:
+      type: object
+      required: [purchaseDate, storeName, items]
+      additionalProperties: false
+      properties:
+        purchaseDate: { type: string, format: date }
+        storeName: { type: string, minLength: 1, maxLength: 120 }
+        sourceShoppingListId: { type: string }
+        items:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/PurchaseItem' }
+        paymentAllocations:
+          type: array
+          items: { $ref: '#/components/schemas/PaymentAllocation' }
+        notes: { type: string, maxLength: 1000 }
+    UpdatePurchaseDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision]
+      minProperties: 2
+      properties:
+        expectedRevision: { type: integer, minimum: 1 }
+        purchaseDate: { type: string, format: date }
+        storeName: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PurchaseItem' }
+        paymentAllocations:
+          type: array
+          items: { $ref: '#/components/schemas/PaymentAllocation' }
+        notes: { type: string }
+    Purchase:
+      type: object
+      required: [id, state, purchaseDate, revision, subtotalCents, totalCents, items, paymentAllocations]
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [DRAFT, FINALIZED, CORRECTED, CANCELLED] }
+        purchaseDate: { type: string, format: date }
+        revision: { type: integer, minimum: 1 }
+        storeName: { type: string }
+        subtotalCents: { $ref: '#/components/schemas/MoneyCents' }
+        totalDiscountCents: { $ref: '#/components/schemas/MoneyCents' }
+        totalCents: { $ref: '#/components/schemas/MoneyCents' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PurchaseItem' }
+        paymentAllocations:
+          type: array
+          items: { $ref: '#/components/schemas/PaymentAllocation' }
+        finalizedAt: { type: [string, 'null'], format: date-time }
+    CorrectPurchaseRequest:
+      type: object
+      required: [reason, revision]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        revision: { type: integer, minimum: 1 }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PurchaseItem' }
+        paymentAllocations:
+          type: array
+          items: { $ref: '#/components/schemas/PaymentAllocation' }
+    CancelPurchaseRequest:
+      type: object
+      required: [reason, revision]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        revision: { type: integer, minimum: 1 }
+    ProductPage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Product' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    PurchasePage:
+      type: object
+      required: [items, pageInfo]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Purchase' }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    PurchaseHistory:
+      type: object
+      required: [purchaseId, currentRevision, corrections]
+      properties:
+        purchaseId: { type: string }
+        currentRevision: { type: integer, minimum: 1 }
+        corrections:
+          type: array
+          items:
+            type: object
+            required: [id, type, reason, beforeRevision, afterRevision, occurredAt, stockDeltas, budgetDeltaCents]
+            properties:
+              id: { type: string }
+              type: { type: string, enum: [EDIT, CANCEL] }
+              reason: { type: string }
+              beforeRevision: { type: integer, minimum: 1 }
+              afterRevision: { type: integer, minimum: 1 }
+              occurredAt: { type: string, format: date-time }
+              budgetDeltaCents: { $ref: '#/components/schemas/SignedMoneyCents' }
+              stockDeltas:
+                type: array
+                items:
+                  type: object
+                  required: [productId, deltaBaseQuantity, baseUnit]
+                  properties:
+                    productId: { type: string }
+                    deltaBaseQuantity: { $ref: '#/components/schemas/SignedDecimalQuantity' }
+                    baseUnit: { $ref: '#/components/schemas/Unit' }
+    PriceComparison:
+      type: object
+      required: [productId, comparable, observations]
+      properties:
+        productId: { type: string }
+        presentationId: { type: [string, 'null'] }
+        comparable: { type: boolean }
+        averageUnitPriceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        lowestUnitPriceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        highestUnitPriceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        latestPriceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        observations:
+          type: array
+          items:
+            type: object
+            required: [storeName, observedAt, unitPriceCents, unit]
+            properties:
+              storeName: { type: string }
+              observedAt: { type: string, format: date-time }
+              unitPriceCents: { $ref: '#/components/schemas/MoneyCents' }
+              unit: { type: string }
+    ProductInsight:
+      type: object
+      required: [productId, recurrenceStatus, confirmedPurchaseCount, historySufficient]
+      properties:
+        productId: { type: string }
+        recurrenceStatus: { type: string, enum: [INSUFFICIENT_HISTORY, RECURRING, POSSIBLY_OVERDUE, OCCASIONAL] }
+        confirmedPurchaseCount: { type: integer, minimum: 0 }
+        historySufficient: { type: boolean }
+        averageIntervalDays: { oneOf: [{ type: number, minimum: 0 }, { type: 'null' }] }
+        daysSinceLastPurchase: { oneOf: [{ type: integer, minimum: 0 }, { type: 'null' }] }
+        estimatedAverageConsumptionBaseQuantity: { oneOf: [{ $ref: '#/components/schemas/DecimalQuantity' }, { type: 'null' }] }
+        baseUnit: { $ref: '#/components/schemas/Unit' }
+        rationaleCodes:
+          type: array
+          items: { type: string }
+    Dashboard:
+      type: object
+      required: [budget, latestPurchases, lowStockProducts]
+      properties:
+        budget: { $ref: '#/components/schemas/BudgetPeriod' }
+        monthlySpentByCategory:
+          type: array
+          items:
+            type: object
+            required: [categoryName, amountCents]
+            properties:
+              categoryName: { type: string }
+              amountCents: { $ref: '#/components/schemas/MoneyCents' }
+        monthlySpentByStore:
+          type: array
+          items:
+            type: object
+            required: [storeName, amountCents]
+            properties:
+              storeName: { type: string }
+              amountCents: { $ref: '#/components/schemas/MoneyCents' }
+        latestPurchases:
+          type: array
+          items: { $ref: '#/components/schemas/Purchase' }
+        lowStockProducts:
+          type: array
+          items: { $ref: '#/components/schemas/InventoryItem' }
+        priceIncreaseProductIds:
+          type: array
+          items: { type: string }
+        estimatedNextPurchaseCents:
+          oneOf:
+            - { $ref: '#/components/schemas/MoneyCents' }
+            - { type: 'null' }
+        projectedBalanceCents:
+          oneOf:
+            - { $ref: '#/components/schemas/SignedMoneyCents' }
+            - { type: 'null' }
+    Session:
+      type: object
+      required: [userId, householdId, role]
+      properties:
+        userId: { type: string }
+        householdId: { type: string }
+        role: { type: string, const: OWNER }
+    CsrfBootstrap:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, minLength: 32 }
+    CreateSessionRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 12, writeOnly: true }
+
